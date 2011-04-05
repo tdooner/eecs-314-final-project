@@ -11,6 +11,12 @@ void put(int* board, int row, int column, int value);
 int get(int* board, int row, int column);
 
 int place(int* board, int column, int player);
+/*
+ * Returns 1 if players can gravatationally move in a given
+ * spot (i.e. if a player drops a piece in a column, will it
+ * drop down to the given row)
+ */
+int can_place(int* board, int row, int column);
 
 int check_win(int* board);
 int check_win_horz(int* board, int player);
@@ -19,8 +25,8 @@ int check_win_diag(int* board, int player);
 
 void print_board(int* board);
 
-int get_next_move(int* board);
-int evaluate_board(int* board);
+int get_next_move(double* colvalues);
+double* evaluate_board(int* board);
 
 int main()
 {
@@ -62,7 +68,7 @@ int main()
         }
 
 		// Do the AI's move...
-		int ai_column = get_next_move(board);
+		int ai_column = get_next_move(evaluate_board(board));
 		place(board,ai_column, 2);
 
 		// Did the AI's move cause it to win?
@@ -72,8 +78,6 @@ int main()
             printf("Player 2 wins!\n");
             break;
         }
-		evaluate_board(board);
-
 	}
 
 	free(board);
@@ -276,14 +280,24 @@ void print_board(int* board)
  *************************************** */
 
 // Determine the best move from the 7 possible moves
-int get_next_move(int* board) 
+int get_next_move(double* colvalues) 
 {
-	return 1;
+	double max = 0;
+	int maxcol = -1;
+	for (int i=0; i < WIDTH; i++) {
+		printf("%f   ", max);
+		if (abs(colvalues[i]) > max) {
+			maxcol = i;
+			max = abs(colvalues[i]);
+		}
+	}
+	printf("Picked %d with heuristic %f", maxcol, max);
+	return maxcol;
 }
 
 
 // Given a board, this will objectively determine how good it is.
-int evaluate_board(int* board) 
+double* evaluate_board(int* board) 
 {
 
 	double* colvalues = malloc(sizeof(double) * WIDTH);
@@ -299,7 +313,7 @@ int evaluate_board(int* board)
 			int at = get(board, row, col);
 			
 			// Go up until we get to a blank space
-			if ( at == 0) {
+			if ( at == 0) { 
 				break;
 			}
 
@@ -315,17 +329,82 @@ int evaluate_board(int* board)
 		// at the top.
 		if (row < (HEIGHT - 1)) {
 			colvalues[col] = (player == 2) ? pow(10.0, consec) : -pow(10.0,consec);
+		} else {
+			colvalues[col] = 0.0;
 		}
-
-		printf("%d: %f\n", col, colvalues[col]);
 	}
 
 	// Find horizontal availabilities
 	for (int row=0; row < HEIGHT; row++) {
-		
+		// The general algorithm here is to count the consecutive pieces
+		// before a blank. Then, add that value to the usefulness of
+		// the blank column. Then, continue from the blank space and also add 
+		// the next consecutive group to the blank space's column.
+		//
+		// This is accomplished by sweeping through each row twice, once from
+		// left to right and once from right to left.
+		int player = 0;
+		int consec = 1;
+
+		for (int col=0; col < WIDTH; col++) {
+			int at = get(board, row, col);
+
+			if (at  == 0) {
+				if (!can_place(board, row, col)) {
+					continue;
+				}
+
+				if (player != 0) {
+					colvalues[col] += (player == 2) ? pow(10.0, consec) : -pow(10.0, consec);
+				}
+				player = 0;
+			} else {
+				if (player == at) {
+					consec += 1.0;
+				} else {
+					consec = 1.0;
+					player = at;
+				}
+			}
+		}
+
+		for (int col=WIDTH; col > 0; --col) {
+			int at = get(board, row, col);
+
+			if (at == 0) {
+				if (!can_place(board, row,col)) {
+					continue;
+				}
+
+				if (player != 0) {
+					colvalues[col] += (player == 2) ? pow(10.0, consec) : -pow(10.0, consec);
+				}
+				player = 0;
+			} else {
+				if (player == at) {
+					consec += 1.0;
+				} else {
+					consec = 1.0;
+					player = at;
+				}
+			}
+		}
 	}
-	
-	return 0;
+	for(int col=0; col < WIDTH; col++) {
+		printf("%d: %f\n", col, colvalues[col]);
+	}
+	return colvalues;
 }
 
-
+int can_place(int* board, int row, int column)
+{
+    for (int row2 = 0; row2 < HEIGHT; row2++)
+    {
+        if (get(board, row2, column) == 0)
+        {
+			return (row == row2) ? 1 : 0;
+        }
+    }
+    
+    return 0;
+}
