@@ -7,9 +7,38 @@ const int HEIGHT = 6;
 
 int* new_board();
 
+/*
+ * Put places the given player number at a specified row and column.  
+ * This function always succeeds (even if there is already a value
+ * there, so be careful!
+ * 
+ * $a0 = row
+ * $a1 = column
+ * $a2 = player
+ */
 void put(int* board, int row, int column, int value);
+
+/*
+ * Get returns the player number at a specified row and column.  Returns
+ * a -1 if the row and column are out of bounds, a 0 if the space is 
+ * empty, and a 1 or 2 if the space is occupied
+ * 
+ * $a0 = row
+ * $a1 = column
+ * 
+ * $v0 = -1, 0, or player
+ */
 int get(int* board, int row, int column);
 
+/*
+ * Place puts a given player number at the lowest available row in the
+ * specified column.  It returns 1 on sucess and 0 on failure (row full)
+ * 
+ * $a0 = column
+ * $a1 = player
+ * 
+ * $v0 = 0 or 1
+ */
 int place(int* board, int column, int player);
 /*
  * Returns 1 if players can gravatationally move in a given
@@ -18,16 +47,40 @@ int place(int* board, int column, int player);
  */
 int can_place(int* board, int row, int column);
 
-int check_win(int* board);
+/*
+ * This function checks the entire board and returns whether or not
+ * the given player won the game.  It returns 1 if the player won.
+ * 
+ * $a0 = player
+ * 
+ * $v0 = 0 or 1
+ */
+int check_win(int* board, int player);
+
+/*
+ * cThe check_win_* functions take a player number and check to see
+ * if that player won in the given direction.  They return 0 if the
+ * player did not win and 1 if they did
+ * 
+ * $a0 = player num
+ * $v0 = 0 or 1
+ */
 int check_win_horz(int* board, int player);
 int check_win_vert(int* board, int player);
 int check_win_diag(int* board, int player);
 
+/* 
+ * This simply prints the board with the column indicies at the bottom
+ */
 void print_board(int* board);
 
 int get_next_move(double* colvalues);
 double* evaluate_board(int* board);
 
+/*
+ * This is the main loop of the connect four game.  It first prints a 
+ * welcome message, allocates the board, and then begins the game loop
+ */
 int main()
 {
 	puts("Welcome to Connect Four\n");
@@ -48,7 +101,7 @@ int main()
 
 			if (column < 0 || column >= WIDTH)
 			{
-				printf("Input a valid choice.\n");
+				printf("Input a valid choice (0 - 6).\n");
 			}
 			else if (place(board, column, 1) == 0)
 			{
@@ -60,7 +113,7 @@ int main()
             }
 		}
         // Did the human input make him or her win?
-        if (check_win(board) != 0)
+        if (check_win(board, 1) != 0)
         {
             print_board(board);
             printf("Player 1 wins!\n");
@@ -72,7 +125,7 @@ int main()
 		place(board,ai_column, 2);
 
 		// Did the AI's move cause it to win?
-        if (check_win(board) != 0)
+        if (check_win(board, 2) != 0)
         {
             print_board(board);
             printf("Player 2 wins!\n");
@@ -134,17 +187,14 @@ int place(int* board, int column, int player)
     return 0;
 }
 
-int check_win(int* board)
+int check_win(int* board, int player)
 {
-    for (int player = 1; player <= 2; player++)
-    {
-        if (check_win_horz(board, player) != 0 ||
-            check_win_vert(board, player) != 0 ||
-            check_win_diag(board, player) != 0)
-        {
-            return player;
-        }
-    }
+	if (check_win_horz(board, player) != 0 ||
+		check_win_vert(board, player) != 0 ||
+		check_win_diag(board, player) != 0)
+	{
+		return 1;
+	}
     
     return 0;
 }
