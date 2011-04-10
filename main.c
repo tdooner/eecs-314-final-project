@@ -40,12 +40,17 @@ int get(int* board, int row, int column);
  * $v0 = 0 or 1
  */
 int place(int* board, int column, int player);
+
 /*
- * Returns 1 if players can gravatationally move in a given
- * spot (i.e. if a player drops a piece in a column, will it
- * drop down to the given row)
+ * Returns the number of consecutive pieces before a blank in the
+ * position a b c _. This is useful for the diagonal checking.
+ *
+ * Returns an integer between 1 (e.g. 1 2 1 _) and 3 (e.g. 1 1 1 _)
+ *
+ * Also, the player with the consecutive streak will be the player
+ * which is in c.
  */
-int can_place(int* board, int row, int column);
+int num_consecutive(int a, int b, int c);
 
 /*
  * This function checks the entire board and returns whether or not
@@ -303,6 +308,10 @@ void print_board(int* board)
     {
         for (int column = 0; column < WIDTH; column++)
         {
+			if (get(board, row, column) == 0) {
+				printf("  ");
+				continue;
+			}
             printf("%d ", get(board, row, column));
         }
         printf("\n");
@@ -334,14 +343,15 @@ int get_next_move(double* colvalues)
 {
 	double max = 0;
 	int maxcol = -1;
+	double sum = 0;
 	for (int i=0; i < WIDTH; i++) {
-		printf("%f   ", max);
+		sum += abs(colvalues[i]);
 		if (abs(colvalues[i]) > max) {
 			maxcol = i;
 			max = abs(colvalues[i]);
 		}
 	}
-	printf("Picked %d with heuristic %f", maxcol, max);
+	printf("Picked %d with confidence %.0f%%\n", maxcol, floor(100*max/sum));
 	return maxcol;
 }
 
@@ -349,13 +359,26 @@ int get_next_move(double* colvalues)
 // Given a board, this will objectively determine how good it is.
 double* evaluate_board(int* board) 
 {
-
+	// TODO: Instead of doing all these loops for each of horizontal, vertical
+	// and diagonal things, maybe we should just go through for each column and
+	// find the move, then count consecutivity from there.
+	
+	// TODO: Also consider the situation 2 2 _ 2. Now, the heuristic would see
+	// it as 10^2 + 10^1 whereas it should show it as 10^3.
 	double* colvalues = malloc(sizeof(double) * WIDTH);
 
-	// Find vertical availabilities
+	// For each column, find the first available opening, and then find how
+	// many pieces are consecutive vertically, horizontally, and diagonally.
 	for (int col=0; col < WIDTH; col++)
 	{
-		double consec = 0.0;
+		///////////////////////////////////////////////////////////////////////
+		// Find an open block in each column, then find vertical availabilities
+		// in that column, then find the horizontal availablities and diagonal
+		// ones too.
+		///////////////////////////////////////////////////////////////////////	
+
+		// Find the first available opening in the column.
+		double vertical_consec = 0.0;
 		int player = 0;
 		int row;
 		for (row=0; row < HEIGHT; row++)
@@ -363,29 +386,31 @@ double* evaluate_board(int* board)
 			int at = get(board, row, col);
 			
 			// Go up until we get to a blank space
-			if ( at == 0) { 
+			if ( at == 0) {  
 				break;
 			}
 
-			// Look for the longest streak by a player
-			if (at == player) {
-				consec += 1.0;
+			// While going up the column, keep track of consecutive pieces
+			if (at == player) { 
+				vertical_consec += 1.0;
 			} else {
 				player = at;
-				consec = 1.0;
+				vertical_consec = 1.0;
 			}
 		}
 		// The column is only worth something if there is a blank space
 		// at the top.
 		if (row < (HEIGHT - 1)) {
-			colvalues[col] = (player == 2) ? pow(10.0, consec) : -pow(10.0,consec);
+			// Initialize this column to the goodness vertically.
+			colvalues[col] = (player == 2) ? pow(10.0, vertical_consec) : -pow(10.0,vertical_consec);
 		} else {
 			colvalues[col] = 0.0;
+			continue; 	// Try the next column....
 		}
-	}
 
-	// Find horizontal availabilities
-	for (int row=0; row < HEIGHT; row++) {
+		///////////////////////////////////////////////////////////////////////
+		// Horizontal Availablities
+		///////////////////////////////////////////////////////////////////////	
 		// The general algorithm here is to count the consecutive pieces
 		// before a blank. Then, add that value to the usefulness of
 		// the blank column. Then, continue from the blank space and also add 
@@ -393,68 +418,137 @@ double* evaluate_board(int* board)
 		//
 		// This is accomplished by sweeping through each row twice, once from
 		// left to right and once from right to left.
-		int player = 0;
-		int consec = 1;
 
-		for (int col=0; col < WIDTH; col++) {
-			int at = get(board, row, col);
+		int horiz_before_player = 0;
+		int horiz_after_player = 0;
+		
+		int horiz_before_consec = 1;
+		int horiz_after_consec = 1;
+		
+		// Before the found gap.
+		for (int col_horiz=0; col_horiz < col; col_horiz++) {
+			int at = get(board, row, col_horiz);
 
-			if (at  == 0) {
-				if (!can_place(board, row, col)) {
-					continue;
-				}
-
-				if (player != 0) {
-					colvalues[col] += (player == 2) ? pow(10.0, consec) : -pow(10.0, consec);
-				}
-				player = 0;
+			if (horiz_before_player == at) {
+				horiz_before_consec += 1.0;
 			} else {
-				if (player == at) {
-					consec += 1.0;
-				} else {
-					consec = 1.0;
-					player = at;
-				}
+				horiz_before_consec = 1.0;
+				horiz_before_player = at;
+			}	
+		}
+		if (horiz_before_player == 0) {
+			horiz_before_consec = 0;
+		}
+		
+		// After the given gap. (Start at the right edge of the game board and
+		// work backwards until the gap)
+		for (int col_horiz=WIDTH; col_horiz > col; --col_horiz) {
+			int at = get(board, row, col_horiz);
+
+			if (horiz_after_player == at) {
+				horiz_after_consec += 1.0;
+			} else {
+				horiz_after_consec = 1.0;
+				horiz_after_player = at;
 			}
 		}
+		if (horiz_after_player == 0) {
+			horiz_after_consec = 0;
+		}
+		// Now calculate the horizontal adjancies... keeping in mind that
+		// both before _and_ after must be considered, as the board position
+		// could be like:  2 1 2 _ 2 2 , which should identify the middle
+		// position as more valuable.
+		if (horiz_before_player == horiz_after_player) {
+			int total_consec = horiz_before_consec + horiz_after_consec;	
+			colvalues[col] += (horiz_before_player == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+		} else {
+			colvalues[col] += (horiz_before_player == 2) ? pow(10.0, horiz_before_consec) : -pow(10.0,horiz_before_consec);
+			colvalues[col] += (horiz_after_player == 2) ? pow(10.0, horiz_after_consec) : -pow(10.0,horiz_after_consec);
+		}
+		/////////////////////////////////////////////////////////////
+		// Find Diagonal Availabilities
+		/////////////////////////////////////////////////////////////
+		// The general algorithm here is to look in each column, find a
+		// blank, and then count the number of adjacent numbers in those 
+		// diagonals.
+		//
+		// Sorry, whoever is converting this to MIPS (oh dear I hope it's
+		// not me.)
 
-		for (int col=WIDTH; col > 0; --col) {
-			int at = get(board, row, col);
+		int a,b,c,up_player,up_consec,below_consec;
+		// Below left diagonal
+		a = get(board, row - 3, col - 3);
+		b = get(board, row - 2, col - 2);
+		c = get(board, row - 1, col - 1);
+		up_player = c;
+		up_consec = num_consecutive(a, b, c);
+		if (up_player == -1 || up_player == 0) {
+			up_consec = 0;
+		}
 
-			if (at == 0) {
-				if (!can_place(board, row,col)) {
-					continue;
-				}
+		// Above right diagonal
+		a = get(board, row + 3, col + 3);
+		b = get(board, row + 2, col + 2);
+		c = get(board, row + 1, col + 1);
+		below_consec = num_consecutive(a, b, c);
+		if (c == -1 || c == 0) {
+			below_consec = 0;
+		}
 
-				if (player != 0) {
-					colvalues[col] += (player == 2) ? pow(10.0, consec) : -pow(10.0, consec);
-				}
-				player = 0;
-			} else {
-				if (player == at) {
-					consec += 1.0;
-				} else {
-					consec = 1.0;
-					player = at;
-				}
-			}
+		if (up_player == c) { // If the streak continues across the gap
+			int total_consec = up_consec + below_consec;
+			colvalues[col] += (c == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+		} else {
+			colvalues[col] += (up_player == 2) ? pow(10.0, up_consec) : -pow(10.0, up_consec);
+			colvalues[col] += (c == 2) ? pow(10.0, below_consec) : -pow(10.0, below_consec);
+		}
+
+		// Below right diagonal
+		a = get(board, row - 3, col + 3);
+		b = get(board, row - 2, col + 2);
+		c = get(board, row - 1, col + 1);
+		up_player = c;
+		up_consec = num_consecutive(a, b, c);
+		if (up_player == -1 || up_player == 0) {
+			up_consec = 0;
+		}
+
+		// Above left diagonal
+		a = get(board, row + 3, col - 3);
+		b = get(board, row + 2, col - 2);
+		c = get(board, row + 1, col - 1);
+		below_consec = num_consecutive(a, b, c);
+		if (c == -1 || c == 0) {
+			below_consec = 0;
+		}
+
+		if (up_player == c) { // If the streak continues across the gap
+			int total_consec = up_consec + below_consec;
+			colvalues[col] += (c == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+		} else {
+			colvalues[col] += (up_player == 2) ? pow(10.0, up_consec) : -pow(10.0, up_consec);
+			colvalues[col] += (c == 2) ? pow(10.0, below_consec) : -pow(10.0, below_consec);
 		}
 	}
-	for(int col=0; col < WIDTH; col++) {
-		printf("%d: %f\n", col, colvalues[col]);
-	}
+
+		// Below left to above right...
 	return colvalues;
 }
 
-int can_place(int* board, int row, int column)
-{
-    for (int row2 = 0; row2 < HEIGHT; row2++)
-    {
-        if (get(board, row2, column) == 0)
-        {
-			return (row == row2) ? 1 : 0;
-        }
-    }
-    
-    return 0;
+int num_consecutive(int a, int b, int c) {
+	// Uses some bitwise ORs because that will be easier in
+	// MIPS.
+	int a_and_b = 0;
+	int b_and_c = 1;  // At the least, this should return 1
+	if (b == c) {
+		// "c c _" indicates that there are at least two consecutive,
+		// but perhaps more.
+		b_and_c = 2;  
+
+		if (a == b) {
+			a_and_b = 1;
+		}
+	}
+	return (a_and_b | b_and_c);
 }
