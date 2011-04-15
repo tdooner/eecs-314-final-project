@@ -346,7 +346,119 @@ check_win:	li	$v0, 0
 
 
 ################################################################################
-# int get_next_move(int* board);					       #
+# int get_next_move(int* colvalues);					       #
+# 									       #
+# $a0 = starting address of colvalues array (length 7) 			       #
+# 									       #
+# $v0 = column to move 							       #
+# 									       #
 ################################################################################
 get_next_move:	li	$v0, 0
-		jr 	$ra			# FIXME: Just return no winner
+		jr 	$ra			
+
+################################################################################
+# int* evaluate_board(int* board);					       #
+# 									       #
+# $s3 = starting address of colvalues array (pass into get_next_move)          #
+# 									       #
+################################################################################
+evaluate_board: li 	$a0, 28 	# 4 bytes * 7 columns
+# int* colvalues = malloc(sizeof(int) * WIDTH);
+		li 	$v0, 9
+		syscall
+		add 	$s3, $zero, $v0   #the position of colvalues
+# for (int col=0; col < WIDTH; col++) {
+# // For each column, calculate that column's value.
+		li 	$s1, 0  #col
+eval_board_col: 
+# int vertical_consec = 0;
+		li 	$t1, 0  #vertical_consec
+# int player = 0;
+		li 	$t2, 0  #player
+# int row;
+		li 	$s2, 0  #row
+# for (row=0; row < HEIGHT; row++) {
+# 	int at = get(board,row,col);
+ev_b_row: 	
+		add 	$a0, $zero, $s2
+		add 	$a1, $zero, $s1
+		jal 	get
+# 	if (at==0) { break; }
+		beq 	$v0, 0, ev_b_row_end
+#	if (at==player) { vertical_consec += 1 }
+#	else { player = at; vertical_consec = 1; }
+		beq 	$v0, $t2, ev_b_row_e1
+		add	$t2, $zero, $v0
+		addi	$t1, $zero, 1
+ev_b_row_e1:	addi	$t1, $t1, 1
+# }
+		addi	$s2, $s2, 1
+		bne	$s2, 6, ev_b_row  # loop for all 6 rows
+ev_b_row_end:
+# // So now at this point, row ($s2) is the topmost empty position in the
+# // column $s1.
+#
+# // Check to ensure that the row is not the top of the board 
+# //  (if it is, may as well go to the next column...)
+# if (row >= HEIGHT) {
+		slti	$t4, $s2, 6
+		beq	$t4, 1, ev_b_col_e1
+# colvalues[col] = 0; continue;
+		addi 	$s1, $s1, 1
+		bne 	$s1, 7, eval_board_col
+# } else {					
+ev_b_col_e1:
+# colvalues[col] = (player == 2) ? (int)pow........
+		add	$a0, $t2, $zero
+		add	$a1, $s1, $zero
+		add	$a2, $t1, $zero
+		jal 	set_colval
+# }		
+#########################################################################
+#
+#  REST OF AI GOES HERE
+# 
+# - Horizontal Availabilities
+# - Diagonal Availabilities
+#
+########################################################################
+		addi 	$s1, $s1, 1
+		bne 	$s1, 7, eval_board_col
+# } (ends the main AI loop for each column.)
+################################################################################
+# Sets the column value based on the formula				       #
+#									       #
+#      colvalues[col] += (player == 2) ? (int)pow(10.0, [number consec]) :     #
+#				-(int)pow(10.0), [number consec])	       #
+# 									       #
+# $a0 = player								       #
+# $a1 = column								       #
+# $a2 = number consecutive						       #
+# 									       #
+# $t1, $t0, $t3, and $a3 used internally, if you care to know		       #
+################################################################################
+set_colval:	li	$a3, 4
+		mult	$a1, $a3
+		mflo 	$a3		# the offset from $s3
+		add	$t3, $a3, $s3	# adds offset...
+		lw	$a1, 0($t3)	# $a1 = current colvalue
+		# shuffle around some registers so we can call pow
+		add	$t1, $zero, $a0
+		add	$a0, $a2, $zero
+pow:		li 	$t0, 10  #The base
+		li	$v0, 1
+pow_loop:	
+		beq	$a0, 0, pow_done
+		mult	$v0, $t0
+		mflo	$v0
+		addi	$a0, $a0, -1
+		j 	pow_loop
+pow_done:
+		beq 	$t1, 2, set_colval_com
+		# If the player is human, then the colval should be negative
+		addi	$t1, $zero, -1
+		mult	$v0, $t1
+		mflo	$v0
+set_colval_com: add	$a1, $a1, $v0
+		sw	$a1, 0($t3)
+		jr	$ra

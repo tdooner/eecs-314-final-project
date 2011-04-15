@@ -79,8 +79,8 @@ int check_win_diag(int* board, int player);
  */
 void print_board(int* board);
 
-int get_next_move(double* colvalues);
-double* evaluate_board(int* board);
+int get_next_move(int* colvalues);
+int* evaluate_board(int* board);
 
 /*
  * This is the main loop of the connect four game.  It first prints a 
@@ -339,11 +339,11 @@ void print_board(int* board)
  *************************************** */
 
 // Determine the best move from the 7 possible moves
-int get_next_move(double* colvalues) 
+int get_next_move(int* colvalues) 
 {
-	double max = 0;
+	int max = 0;
 	int maxcol = -1;
-	double sum = 0;
+	int sum = 0;
 	for (int i=0; i < WIDTH; i++) {
 		sum += abs(colvalues[i]);
 		if (abs(colvalues[i]) > max) {
@@ -351,21 +351,15 @@ int get_next_move(double* colvalues)
 			max = abs(colvalues[i]);
 		}
 	}
-	printf("Picked %d with confidence %.0f%%\n", maxcol, floor(100*max/sum));
+	printf("Picked %d with confidence %.0f%%\n", maxcol, floor(100*max/(double)sum));
 	return maxcol;
 }
 
 
 // Given a board, this will objectively determine how good it is.
-double* evaluate_board(int* board) 
+int* evaluate_board(int* board) 
 {
-	// TODO: Instead of doing all these loops for each of horizontal, vertical
-	// and diagonal things, maybe we should just go through for each column and
-	// find the move, then count consecutivity from there.
-	
-	// TODO: Also consider the situation 2 2 _ 2. Now, the heuristic would see
-	// it as 10^2 + 10^1 whereas it should show it as 10^3.
-	double* colvalues = malloc(sizeof(double) * WIDTH);
+	int* colvalues = malloc(sizeof(int) * WIDTH);
 
 	// For each column, find the first available opening, and then find how
 	// many pieces are consecutive vertically, horizontally, and diagonally.
@@ -378,7 +372,7 @@ double* evaluate_board(int* board)
 		///////////////////////////////////////////////////////////////////////	
 
 		// Find the first available opening in the column.
-		double vertical_consec = 0.0;
+		int vertical_consec = 0;
 		int player = 0;
 		int row;
 		for (row=0; row < HEIGHT; row++)
@@ -392,19 +386,19 @@ double* evaluate_board(int* board)
 
 			// While going up the column, keep track of consecutive pieces
 			if (at == player) { 
-				vertical_consec += 1.0;
+				vertical_consec += 1;
 			} else {
 				player = at;
-				vertical_consec = 1.0;
+				vertical_consec = 1;
 			}
 		}
 		// The column is only worth something if there is a blank space
 		// at the top.
-		if (row < (HEIGHT - 1)) {
+		if (row < HEIGHT) {
 			// Initialize this column to the goodness vertically.
-			colvalues[col] = (player == 2) ? pow(10.0, vertical_consec) : -pow(10.0,vertical_consec);
+			colvalues[col] = (player == 2) ? (int)pow(10.0, vertical_consec) : -(int)pow(10.0,vertical_consec);
 		} else {
-			colvalues[col] = 0.0;
+			colvalues[col] = 0;
 			continue; 	// Try the next column....
 		}
 
@@ -430,9 +424,9 @@ double* evaluate_board(int* board)
 			int at = get(board, row, col_horiz);
 
 			if (horiz_before_player == at) {
-				horiz_before_consec += 1.0;
+				horiz_before_consec += 1;
 			} else {
-				horiz_before_consec = 1.0;
+				horiz_before_consec = 1;
 				horiz_before_player = at;
 			}	
 		}
@@ -446,9 +440,9 @@ double* evaluate_board(int* board)
 			int at = get(board, row, col_horiz);
 
 			if (horiz_after_player == at) {
-				horiz_after_consec += 1.0;
+				horiz_after_consec += 1;
 			} else {
-				horiz_after_consec = 1.0;
+				horiz_after_consec = 1;
 				horiz_after_player = at;
 			}
 		}
@@ -461,10 +455,10 @@ double* evaluate_board(int* board)
 		// position as more valuable.
 		if (horiz_before_player == horiz_after_player) {
 			int total_consec = horiz_before_consec + horiz_after_consec;	
-			colvalues[col] += (horiz_before_player == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+			colvalues[col] += (horiz_before_player == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
 		} else {
-			colvalues[col] += (horiz_before_player == 2) ? pow(10.0, horiz_before_consec) : -pow(10.0,horiz_before_consec);
-			colvalues[col] += (horiz_after_player == 2) ? pow(10.0, horiz_after_consec) : -pow(10.0,horiz_after_consec);
+			colvalues[col] += (horiz_before_player == 2) ? (int)pow(10.0, horiz_before_consec) : -(int)pow(10.0,horiz_before_consec);
+			colvalues[col] += (horiz_after_player == 2) ? (int)pow(10.0, horiz_after_consec) : -(int)pow(10.0,horiz_after_consec);
 		}
 		/////////////////////////////////////////////////////////////
 		// Find Diagonal Availabilities
@@ -498,10 +492,10 @@ double* evaluate_board(int* board)
 
 		if (up_player == c) { // If the streak continues across the gap
 			int total_consec = up_consec + below_consec;
-			colvalues[col] += (c == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+			colvalues[col] += (c == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
 		} else {
-			colvalues[col] += (up_player == 2) ? pow(10.0, up_consec) : -pow(10.0, up_consec);
-			colvalues[col] += (c == 2) ? pow(10.0, below_consec) : -pow(10.0, below_consec);
+			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
+			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(10.0, below_consec);
 		}
 
 		// Below right diagonal
@@ -525,10 +519,10 @@ double* evaluate_board(int* board)
 
 		if (up_player == c) { // If the streak continues across the gap
 			int total_consec = up_consec + below_consec;
-			colvalues[col] += (c == 2) ? pow(10.0, total_consec) : -pow(10.0,total_consec);
+			colvalues[col] += (c == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
 		} else {
-			colvalues[col] += (up_player == 2) ? pow(10.0, up_consec) : -pow(10.0, up_consec);
-			colvalues[col] += (c == 2) ? pow(10.0, below_consec) : -pow(10.0, below_consec);
+			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
+			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(11.0, below_consec);
 		}
 	}
 
