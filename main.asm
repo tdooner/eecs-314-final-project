@@ -8,6 +8,9 @@ str_invalid:	.asciiz "Input a valid choice (0 - 6).\n"
 str_full:	.asciiz "That column is full.\n"
 str_one_win:	.asciiz "Player 1 wins!\n"
 str_two_win:	.asciiz "Player 2 wins!\n"
+str_picked	.asciiz	"Picked"
+str_withconf	.asciiz	"with confidence"
+str_percent	.asciiz	"%"
 
 str_board_top:	.asciiz "=============================\n"
 str_board_rowl:	.asciiz "[ "
@@ -462,15 +465,75 @@ cd_loop_end:	li	$v0, 0
 
 
 ################################################################################
-# int get_next_move(int* colvalues);					       #
-# 									       #
-# $a0 = starting address of colvalues array (length 7) 			       #
-# 									       #
-# $v0 = column to move 							       #
-# 									       #
+# int get_next_move(int* colvalues);                                           #
+#                                                                              #
+# $a0 = starting address of colvalues array (length 7)                         #
+#                                                                              #
+# $v0 = column to move                                                         #
+#                                                                              #
 ################################################################################
-get_next_move:	li	$v0, 0
-		jr 	$ra			
+get_next_move:
+            subi    $sp, $sp, 4             # push return addr to stack
+            sw      $ra, 0($sp)
+           
+            li      $t0, 0                  # max = 0;
+            li      $t1, -1                 # maxcol = -1;
+            li      $t2, 0                  # sum = 0
+            li      $t3, 28                 # WIDTH * 4 (each value is a word)
+            li      $t4, 0                  # "i" = 0; (counts up by 4)
+            li      $t9, 0                  # i = 0; (counts up by 1)
+           
+gnm_loop:   bge     $t4, $t3, gnm_end
+                           
+            add     $t6, $a0, $t4
+            lw      $t6, 0($t6)             # colvalues[i]
+
+            addi    $t4, $t4, 4             # "i++" (increment by a word)
+            addi    $t9, $t9, 1             # i++
+           
+            move    $t5, $t6                # $t5 = abs($t6)
+            slt     $t7, $t6, $zero
+            beq     $t7, $zero, abs_end
+            sub     $t5, $zero, $t6
+           
+abs_end:    ble     $t0, $t5, gnm_loop      # if (abs(colvalues[i] <= max) loop
+            move    $t1, $t9                # maxcol = i;
+            move    $t0, $t5                # max = abs(colvalues[i]);
+            j       gnm_loop
+           
+gnm_end:    li      $v0, 4
+            la      $a0, str_picked         # "Picked"
+            syscall
+           
+            li      $v0, 1
+            move    $a0, $t9                # print i
+            syscall
+           
+            li      $v0, 4
+            la      $a0, str_withconf       # "with confidence"
+            syscall
+           
+            mtc1.d  $t0, $f0                # "cast" max to double
+            mtc1.d  $t2, $f2                # "cast" sum to double
+           
+            li      $t8, 100                # load in 100
+            mtc1.d  $t8, $f4                # make it a double
+           
+            div.d   $f2, $f0, $f2           # $f2 = max / sum
+            mul.d   $f12, $f2, $f4          # $f12 = 100 * (max / sum)
+           
+            li      $v0, 3                  # print contents of $f12
+            syscall
+           
+            li      $v0, 4
+            la      $a0, str_percent        # "%."
+            syscall
+           
+            lw      $ra, 0($sp)             # pop the return addr
+            addi    $sp, $sp, 4
+           
+            move    $v0, $t1
+            jr      $ra
 
 ################################################################################
 # int* evaluate_board(int* board);					       #
