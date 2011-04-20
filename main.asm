@@ -369,14 +369,14 @@ evaluate_board: li 	$a0, 28 	# 4 bytes * 7 columns
 		add 	$s3, $zero, $v0   #the position of colvalues
 # for (int col=0; col < WIDTH; col++) {
 # // For each column, calculate that column's value.
-		li 	$s1, 0  #col
+		li 	$s1, 0  				#col
 eval_board_col: 
 # int vertical_consec = 0;
-		li 	$t1, 0  #vertical_consec
-# int player = 0;
-		li 	$t2, 0  #player
+		li 	$t1, 0  				#vertical_consec
+# int player = 0;			
+		li 	$t2, 0 					# player
 # int row;
-		li 	$s2, 0  #row
+		li 	$s2, 0  				#row
 # for (row=0; row < HEIGHT; row++) {
 # 	int at = get(board,row,col);
 ev_b_row: 	
@@ -413,15 +413,100 @@ ev_b_col_e1:
 		add	$a1, $s1, $zero
 		add	$a2, $t1, $zero
 		jal 	set_colval
-# }		
+# }	
 #########################################################################
+## Horizontal Availabilities
+#########################################################################
+		li 	$t0, 0		# int horiz_before_player = 0
+		li	$t1, 0		# int horiz_after_player = 0
+		li 	$t2, 1		# int horiz_before_consec = 1
+		li 	$t3, 1		# int horiz_after_consec = 1
+	######### Before the gap...
+# for (int col_horiz = 0; col_horiz < col; col_horiz++) {
+		li 	$t4, 0		# int col_horiz = 0
+ev_b2_before0:	slt 	$t5, $t4, $s1	# col_horiz < col
+		bne	$t5, 1, ev_b2_before1
+		# int at = get(board, row, col_horiz)
+		add	$a0, $s2, $zero
+		add	$a1, $t4, $zero
+		jal 	get
+		# if (horiz_before_player == at) {
+		#	horiz_before_consec += 1
+		# } else {
+		#	horiz_before_consec = 1;
+		#	horiz_before_player = at;
+		# }
+		li	$t5, 1
+		bne	$t0, $v0, ev_b2_before00
+		add	$t5, $t5, $t2
+ev_b2_before00:
+		addi 	$t4, $t4, 1
+		add	$t0, $v0, $zero
+		j 	ev_b2_before0
+ev_b2_before1:	
+# }
+# if (horiz_before_player == 0) {
+# 	horiz_before_consec = 0;
+# }
+		bne 	$t0, $zero, ev_b2_after2
+		li	$t2, 0
+ev_b2_before2:	# So we're good here, let's now do...
+	######### After the gap...
+# for (int col_horiz = WIDTH; col_horiz > col; col_horiz--) {
+		li 	$t4, 7		# int col_horiz = WIDTH = 7
+ev_b2_after0:	sgt 	$t5, $t4, $s1	# col_horiz > col
+		bne	$t5, 1, ev_b2_after1
+		# int at = get(board, row, col_horiz)
+		add	$a0, $s2, $zero
+		add	$a1, $t4, $zero
+		jal 	get
+		# if (horiz_before_player == at) {
+		#	horiz_before_consec += 1
+		# } else {
+		#	horiz_before_consec = 1;
+		#	horiz_before_player = at;
+		# }
+		li	$t5, 1
+		bne	$t1, $v0, ev_b2_after00
+		add	$t5, $t5, $t3
+ev_b2_after00:
+		subi 	$t4, $t4, 1
+		add	$t1, $v0, $zero
+		j 	ev_b2_after0
+ev_b2_after1:
+# }
+# if (horiz_before_player == 0) {
+# 	horiz_before_consec = 0;
+# }
+		bne 	$t0, $zero, ev_b2_after2
+		li	$t2, 0
+ev_b2_after2:
+		# Okay, now we've calculated everything, let's sum it up
+		# and add to colvalues...
+		
+# if (horiz_before_player == horiz_after_player) {
+		bne 	$t0, $t1, ev_b2_sum1
+		# int total_consec = horiz_before_consec + horiz_after_consec
+		add	$a2, $t2, $t3
+		add	$a0, $t0, $zero
+		add	$a1, $s1, $zero
+		jal set_colval
+		j ev_b2_sum11
+ev_b2_sum1:	add 	$a2, $t2, $zero
+		add 	$a0, $t0, $zero
+		add	$a1, $s1, $zero
+		jal set_colval
+		add 	$a2, $t3, $zero
+		add 	$a0, $t1, $zero
+		add	$a1, $s1, $zero
+		jal set_colval
+ev_b2_sum11:
+#########################################################################
+## Diagonal Availabilities
 #
-#  REST OF AI GOES HERE
-# 
-# - Horizontal Availabilities
-# - Diagonal Availabilities
+#        IMPLEMENT MEEEEEEEEE!
 #
-########################################################################
+#########################################################################
 		addi 	$s1, $s1, 1
 		bne 	$s1, 7, eval_board_col
 # } (ends the main AI loop for each column.)
