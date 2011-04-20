@@ -329,7 +329,6 @@ get_oob:
 #   }
 
 
-
 ################################################################################
 # This function checks the entire board and returns whether or not the given   #
 # player has won the game.  It returns 1 if the player won.		       #
@@ -340,8 +339,125 @@ get_oob:
 #									       #
 # int check_win(int* board, int player);				       #
 ################################################################################
-check_win:	li	$v0, 0
-		jr 	$ra			# FIXME: Just return no winner
+check_win:
+		subi 	$sp, $sp, 4		# push return addr to stack
+		sw	$ra, 0($sp)
+		
+		move	$a2, $a0		# remember the player id
+		move	$t0, $zero			# set return temp to 0
+		
+		j	check_win_horz
+chk_h_done:	or	$t0, $t0, $v0
+		
+		j	check_win_vert
+chk_v_done:	or	$t0, $t0, $v0
+		
+		j	check_win_diag
+chk_d_done:	or	$t0, $t0, $v0
+		
+		lw	$ra, 0($sp)		# pop the return addr
+		addi	$sp, $sp, 4
+		
+		move	$v0, $t0		# return if win occurred
+		jr 	$ra
+
+
+check_win_horz:
+		li	$t1, 6			# load height
+		li	$t4, 4			# number of consec hits needed
+		
+ch_loop_height:	beqz	$t1, ch_loop_end
+		subi	$t1, $t1, 1		# i--;
+		li	$t2, 7			# load width
+ch_lw_else:	li	$t3, 0			# consec = 0;
+
+ch_loop_width:	beqz	$t2, ch_loop_height
+		subi	$t2, $t2, 1		# j--;
+		
+		move	$a0, $t1
+		move	$a1, $t2
+		jal	get			# get(i, j)
+		
+		bne	$v0, $a2, ch_lw_else	# if ($v0 != player) consec = 0;
+		addi	$t3, $t3, 1		# consec++;
+		
+		bne	$t3, $t4, ch_loop_width	# if (consec != 4) continue looping
+		li	$v0, 1
+		j	chk_h_done		# return 1;
+		
+		
+ch_loop_end:	li	$v0, 0
+		j	chk_h_done		# return 0;
+
+
+check_win_vert:
+		li	$t1, 7			# load width
+		li	$t4, 4			# number of consec hits needed
+		
+cv_loop_width:	beqz	$t1, cv_loop_end
+		subi	$t1, $t1, 1		# i--;
+		li	$t2, 6			# load height
+cv_lh_else:	li	$t3, 0			# consec = 0;
+
+cv_loop_height:	beqz	$t2, cv_loop_width
+		subi	$t2, $t2, 1		# j--;
+		
+		move	$a0, $t2
+		move	$a1, $t1
+		jal	get			# get(i, j)
+		
+		bne	$v0, $a2, cv_lh_else	# if ($v0 != player) consec = 0;
+		addi	$t3, $t3, 1		# consec++;
+		
+		bne	$t3, $t4, cv_loop_height# if (consec != 4) continue looping
+		li	$v0, 1
+		j	chk_v_done		# return 1;
+
+cv_loop_end:	li	$v0, 0
+		j	chk_v_done
+
+check_win_diag:
+		li	$t7, 7			# width
+		li	$t8, 6			# height
+		li	$t3, 3			# start_row = 3
+		li	$t4, 0			# start_column = 0
+		li	$t5, 3			# stop after column 3
+		li	$t9, 4			# number of hits to win
+		
+cd_loop_lr:	bgt	$t4, $t5, cd_loop_rl	# increment start_col as long as
+		addi	$t4, $t4, 1		# it's less than or equal to 3
+		
+		li	$t3, 3			# start_row = 3
+		
+cd_loop_lr_a:	bge	$t3, $t8, cd_loop_lr	# increment start_row as long as
+		addi	$t3, $t3, 1		# it's less than height
+		
+		li	$t6, 0			# consec = 0
+		move	$t1, $t3		# row = start_row
+		move	$t2, $t4		# column = start_col
+		
+cd_loop_lr_in:	blt	$t1, $zero, cd_loop_lr_a
+		#bge	$t2, $t8, cd_loop_lr_a
+		
+		move	$a0, $t1
+		move	$a1, $t2
+		jal	get			# get(col, row)
+		
+		subi	$t1, $t1, 1		# move down
+		addi	$t2, $t2, 1		# move right
+		
+		bne	$v0, $a2, cd_loop_lr_in	# if ($v0 != player) loop again
+		addi	$t6, $t6, 1		# consec++;
+		
+		bne	$t6, $t9, cd_loop_lr_in	# if (consec != 4) continue looping
+		li	$v0, 1
+		j	chk_d_done		# return 1;
+
+
+cd_loop_rl:
+
+cd_loop_end:	li	$v0, 0
+		j	chk_d_done
 
 
 
