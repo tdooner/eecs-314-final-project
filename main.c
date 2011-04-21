@@ -345,6 +345,7 @@ int get_next_move(int* colvalues)
 	int maxcol = -1;
 	int sum = 0;
 	for (int i=0; i < WIDTH; i++) {
+		printf("%d: %d\n", i, colvalues[i]);
 		sum += abs(colvalues[i]);
 		if (abs(colvalues[i]) > max) {
 			maxcol = i;
@@ -401,6 +402,7 @@ int* evaluate_board(int* board)
 			colvalues[col] = 0;
 			continue; 	// Try the next column....
 		}
+		printf("Col %d Vertical: %d\n", col, colvalues[col]);
 
 		///////////////////////////////////////////////////////////////////////
 		// Horizontal Availablities
@@ -460,6 +462,7 @@ int* evaluate_board(int* board)
 			colvalues[col] += (horiz_before_player == 2) ? (int)pow(10.0, horiz_before_consec) : -(int)pow(10.0,horiz_before_consec);
 			colvalues[col] += (horiz_after_player == 2) ? (int)pow(10.0, horiz_after_consec) : -(int)pow(10.0,horiz_after_consec);
 		}
+		printf("Col %d Horiz: %d\n", col, colvalues[col]);
 		/////////////////////////////////////////////////////////////
 		// Find Diagonal Availabilities
 		/////////////////////////////////////////////////////////////
@@ -497,6 +500,7 @@ int* evaluate_board(int* board)
 			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
 			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(10.0, below_consec);
 		}
+		printf("Col %d Vert1: %d\n", col, colvalues[col]);
 
 		// Below right diagonal
 		a = get(board, row - 3, col + 3);
@@ -524,6 +528,7 @@ int* evaluate_board(int* board)
 			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
 			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(11.0, below_consec);
 		}
+		printf("Col %d Vert2: %d\n", col, colvalues[col]);
 	}
 
 		// Below left to above right...

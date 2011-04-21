@@ -606,7 +606,11 @@ gnm_end:    li      $v0, 4
 # $s3 = starting address of colvalues array (pass into get_next_move)          #
 # 									       #
 ################################################################################
-evaluate_board: li 	$a0, 28 	# 4 bytes * 7 columns
+evaluate_board: 
+		subi    $sp, $sp, 4
+		sw      $ra, 0($sp)
+		
+		li 	$a0, 28 	# 4 bytes * 7 columns
 # int* colvalues = malloc(sizeof(int) * WIDTH);
 		li 	$v0, 9
 		syscall
@@ -648,8 +652,7 @@ ev_b_row_end:
 		slti	$t4, $s2, 6
 		beq	$t4, 1, ev_b_col_e1
 # colvalues[col] = 0; continue;
-		addi 	$s1, $s1, 1
-		bne 	$s1, 7, eval_board_col
+		j 	ev_b_endloop
 # } else {					
 ev_b_col_e1:
 # colvalues[col] = (player == 2) ? (int)pow........
@@ -719,11 +722,11 @@ ev_b2_after00:
 		j 	ev_b2_after0
 ev_b2_after1:
 # }
-# if (horiz_before_player == 0) {
-# 	horiz_before_consec = 0;
+# if (horiz_after_player == 0) {
+# 	horiz_after_consec = 0;
 # }
-		bne 	$t0, $zero, ev_b2_after2
-		li	$t2, 0
+		bne 	$t1, $zero, ev_b2_after2
+		li	$t3, 0
 ev_b2_after2:
 		# Okay, now we've calculated everything, let's sum it up
 		# and add to colvalues...
@@ -735,7 +738,7 @@ ev_b2_after2:
 		add	$a0, $t0, $zero
 		add	$a1, $s1, $zero
 		jal set_colval
-		jal ev_b2_sum11
+		j ev_b2_sum11
 ev_b2_sum1:	add 	$a2, $t2, $zero
 		add 	$a0, $t0, $zero
 		add	$a1, $s1, $zero
@@ -748,9 +751,6 @@ ev_b2_sum11:
 #########################################################################
 ## Diagonal Availabilities
 #########################################################################
-		subi    $sp, $sp, 4             # push return addr to stack
-		sw      $ra, 0($sp)
-
 	######### Below Left Diagonal
 		subi	$t0, $s2, 3
 		subi	$t1, $s1, 3
@@ -940,13 +940,12 @@ ev_b3_bright3:
 		jal	set_colval
 ev_b3_bright4:	#Done with the diagonal from below right to top left!!
 
-
+ev_b_endloop:
 		addi 	$s1, $s1, 1					
-		bne 	$s1, 7, eval_board_col
+		blt 	$s1, 7, eval_board_col
 # } (ends the main AI loop for each column.)
-
-		lw	$ra, 0($sp)		# pop the return addr
-		addi	$sp, $sp, 4
+		lw      $ra, 0($sp)
+		addi    $sp, $sp, 4
 		jr 	$ra
 		
 ################################################################################
@@ -961,7 +960,12 @@ ev_b3_bright4:	#Done with the diagonal from below right to top left!!
 # 									       #
 # $t1, $t0, $t3, and $a3 used internally, if you care to know		       #
 ################################################################################
-set_colval:	li	$a3, 4
+set_colval:	subi    $sp, $sp, 4             # push $t1 to stack
+            	sw      $t1, 0($sp)
+            	subi    $sp, $sp, 4             # push $t3 to stack
+            	sw      $t3, 0($sp)
+            	
+		li	$a3, 4
 		mult	$a1, $a3
 		mflo 	$a3		# the offset from $s3
 		add	$t3, $a3, $s3	# adds offset...
@@ -985,6 +989,12 @@ pow_done:
 		mflo	$v0
 set_colval_com: add	$a1, $a1, $v0
 		sw	$a1, 0($t3)
+		
+		lw	$t3, 0($sp)
+		addi	$sp, $sp, 4
+		lw	$t1, 0($sp)
+		addi	$sp, $sp, 4
+		
 		jr	$ra
 		
 ################################################################################
