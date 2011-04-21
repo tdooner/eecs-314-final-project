@@ -735,7 +735,7 @@ ev_b2_after2:
 		add	$a0, $t0, $zero
 		add	$a1, $s1, $zero
 		jal set_colval
-		j ev_b2_sum11
+		jal ev_b2_sum11
 ev_b2_sum1:	add 	$a2, $t2, $zero
 		add 	$a0, $t0, $zero
 		add	$a1, $s1, $zero
@@ -748,6 +748,9 @@ ev_b2_sum11:
 #########################################################################
 ## Diagonal Availabilities
 #########################################################################
+		subi    $sp, $sp, 4             # push return addr to stack
+		sw      $ra, 0($sp)
+
 	######### Below Left Diagonal
 		subi	$t0, $s2, 3
 		subi	$t1, $s1, 3
@@ -941,6 +944,9 @@ ev_b3_bright4:	#Done with the diagonal from below right to top left!!
 		addi 	$s1, $s1, 1					
 		bne 	$s1, 7, eval_board_col
 # } (ends the main AI loop for each column.)
+
+		lw	$ra, 0($sp)		# pop the return addr
+		addi	$sp, $sp, 4
 		jr 	$ra
 		
 ################################################################################
