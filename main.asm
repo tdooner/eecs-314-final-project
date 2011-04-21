@@ -469,7 +469,7 @@ cd_loop_lr_b:	bge	$t8, $t9, cd_loop_lr_a	# if (col >= width) loop
 
 
 cd_loop_rl:
-		li	$t3, 9			# start off to the left
+		li	$t3, 8			# start off to the left
 		li	$t4, 3			# stop after 3
 		li	$t6, 4			# the number of consec hits needed
 		li	$t9, 7			# width
@@ -481,7 +481,7 @@ cd_loop_rl_a:	blt	$t3, $t4, cd_loop_end	# if (start_col < 3) stop
 		move	$t8, $t3		# col = start_col
 		
 		li	$t5, 0			# consec = 0
-cd_loop_rl_b:	bge	$t8, $t9, cd_loop_rl_a	# if (col >= width) loop
+cd_loop_rl_b:	blt	$t8, $zero, cd_loop_rl_a	# if (col >= width) loop
 		blt	$t7, $zero, cd_loop_rl_a# if (row < 0) loop
 		
 		move	$a0, $t7
