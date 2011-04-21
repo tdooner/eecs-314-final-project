@@ -643,7 +643,7 @@ ev_b_row:
 #	else { player = at; vertical_consec = 1; }
 		beq 	$v0, $t2, ev_b_row_e1
 		add	$t2, $zero, $v0
-		addi	$t1, $zero, 1
+		li	$t1, 0
 ev_b_row_e1:	addi	$t1, $t1, 1
 # }
 		addi	$s2, $s2, 1
