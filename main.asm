@@ -539,7 +539,8 @@ full_chk_full:
 get_next_move:
             subi    $sp, $sp, 4             # push return addr to stack
             sw      $ra, 0($sp)
-           
+            
+            jal		evaluate_board
             li      $t0, 0                  # max = 0;
             li      $t1, -1                 # maxcol = -1;
             li      $t2, 0                  # sum = 0
@@ -830,7 +831,7 @@ ev_b3_bleft2:	# Store the values somewhere happy.
 		add	$a0, $t3, $zero
 		add 	$a1, $s1, $zero
 		jal	set_colval		
-		j ev_b3_bleft4:
+		j 	ev_b3_bleft4
 ev_b3_bleft3:
 		add	$a2, $t2, $zero
 		add	$a0, $t3, $zero
@@ -924,7 +925,7 @@ ev_b3_bright2:	# Store the values somewhere happy.
 		add	$a0, $t3, $zero
 		add 	$a1, $s1, $zero
 		jal	set_colval		
-		j ev_b3_bright4:
+		j 	ev_b3_bright4
 ev_b3_bright3:
 		add	$a2, $t2, $zero
 		add	$a0, $t3, $zero
@@ -940,6 +941,8 @@ ev_b3_bright4:	#Done with the diagonal from below right to top left!!
 		addi 	$s1, $s1, 1					
 		bne 	$s1, 7, eval_board_col
 # } (ends the main AI loop for each column.)
+		jr 	$ra
+		
 ################################################################################
 # Sets the column value based on the formula				       #
 #									       #
@@ -995,5 +998,4 @@ num_consec:	# if (a == b) { a_and_b = 1 }
 		and	$a0, $a0, $a3
 		addi	$a3, $a3, 1
 		or	$v0, $a0, $a3
-		j	$ra
-		
+		jr	$ra
