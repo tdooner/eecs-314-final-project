@@ -9,9 +9,9 @@ str_full:	.asciiz "That column is full.\n"
 str_one_win:	.asciiz "Player 1 wins!\n"
 str_two_win:	.asciiz "Player 2 wins!\n"
 str_tie:	.asciiz "It's a tie!  (The board is full.)"
-str_picked:	.asciiz	"Picked"
-str_withconf:	.asciiz	"with confidence"
-str_percent:	.asciiz	"%"
+str_picked:	.asciiz	"Computer picked column "
+str_withconf:	.asciiz	" with confidence "
+str_percent:	.asciiz	"%.\n"
 
 str_board_top:	.asciiz "=============================\n"
 str_board_rowl:	.asciiz "[ "
@@ -127,6 +127,9 @@ skip_one_wins:
 #     // Do the AI's move...
 #     int ai_column = get_next_move(board);
 		jal	get_next_move
+		move	$a0, $v0
+		li	$a1, 2
+		jal	place
 
 #     // Did the AI's move cause it to win?
 #     if (check_win(board, 1) != 0)
@@ -537,68 +540,71 @@ full_chk_full:
 #                                                                              #
 ################################################################################
 get_next_move:
-            subi    $sp, $sp, 4             # push return addr to stack
-            sw      $ra, 0($sp)
+                subi    $sp, $sp, 4             # push return addr to stack
+                sw      $ra, 0($sp)
             
-            jal		evaluate_board
-            li      $t0, 0                  # max = 0;
-            li      $t1, -1                 # maxcol = -1;
-            li      $t2, 0                  # sum = 0
-            li      $t3, 28                 # WIDTH * 4 (each value is a word)
-            li      $t4, 0                  # "i" = 0; (counts up by 4)
-            li      $t9, 0                  # i = 0; (counts up by 1)
+                jal		evaluate_board
+                li      $t0, 0                  # max = 0;
+                li      $t1, -1                 # maxcol = -1;
+                li      $t2, 0                  # sum = 0
+                li      $t3, 24                 # (WIDTH - 1) * 4 (each value is a word)
+                li      $t4, 0                  # "i" = 0; (counts up by 4)
+                li      $t9, -1                 # i = 0; (counts up by 1)
            
-gnm_loop:   bge     $t4, $t3, gnm_end
+gnm_loop:       bge     $t4, $t3, gnm_end
                            
-            add     $t6, $s3, $t4
-            lw      $t6, 0($t6)             # colvalues[i]
+                add     $t6, $s3, $t4
+                lw      $t6, 0($t6)             # colvalues[i]
 
-            addi    $t4, $t4, 4             # "i++" (increment by a word)
-            addi    $t9, $t9, 1             # i++
+                addi    $t4, $t4, 4             # "i++" (increment by a word)
+                addi    $t9, $t9, 1             # i++
            
-            move    $t5, $t6                # $t5 = abs($t6)
-            slt     $t7, $t6, $zero
-            beq     $t7, $zero, abs_end
-            sub     $t5, $zero, $t6
+                move    $t5, $t6                # $t5 = abs($t6)
+                slt     $t7, $t6, $zero
+                beq     $t7, $zero, abs_end
+                sub     $t5, $zero, $t6
+            
+abs_end:        add     $t2, $t2, $t5           # ADD DAT SUM
            
-abs_end:    ble     $t0, $t5, gnm_loop      # if (abs(colvalues[i] <= max) loop
-            move    $t1, $t9                # maxcol = i;
-            move    $t0, $t5                # max = abs(colvalues[i]);
-            j       gnm_loop
+	        ble     $t5, $t0, gnm_loop      # if (abs(colvalues[i]) <= max) loop
+                move    $t1, $t9                # maxcol = i;
+                move    $t0, $t5                # max = abs(colvalues[i]);
+                move    $s7, $t5
+                move    $s6, $t2
+                j       gnm_loop
            
-gnm_end:    li      $v0, 4
-            la      $a0, str_picked         # "Picked"
-            syscall
+gnm_end:        li      $v0, 4
+                la      $a0, str_picked         # "Picked"
+                syscall
            
-            li      $v0, 1
-            move    $a0, $t9                # print i
-            syscall
+                li      $v0, 1
+                move    $a0, $t1                # print maxcol
+                syscall
            
-            li      $v0, 4
-            la      $a0, str_withconf       # "with confidence"
-            syscall
+                li      $v0, 4
+                la      $a0, str_withconf       # "with confidence"
+                syscall
+            
+            	li	$t8, 100
+            	mult	$t0, $t8
+            	mflo	$t0
+            	
+            	div	$t0, $t2
+            	mflo	$t0
+            	
+            	li	$v0, 1
+		move    $a0, $t0
+		syscall
            
-            mtc1.d  $t0, $f0                # "cast" max to double
-            mtc1.d  $t2, $f2                # "cast" sum to double
+		li      $v0, 4
+                la      $a0, str_percent        # "%."
+                syscall
            
-            li      $t8, 100                # load in 100
-            mtc1.d  $t8, $f4                # make it a double
+                lw      $ra, 0($sp)             # pop the return addr
+                addi    $sp, $sp, 4
            
-            div.d   $f2, $f0, $f2           # $f2 = max / sum
-            mul.d   $f12, $f2, $f4          # $f12 = 100 * (max / sum)
-           
-            li      $v0, 3                  # print contents of $f12
-            syscall
-           
-            li      $v0, 4
-            la      $a0, str_percent        # "%."
-            syscall
-           
-            lw      $ra, 0($sp)             # pop the return addr
-            addi    $sp, $sp, 4
-           
-            move    $v0, $t1
-            jr      $ra
+                move    $v0, $t1
+                jr      $ra
 
 ################################################################################
 # int* evaluate_board(int* board);					       #
