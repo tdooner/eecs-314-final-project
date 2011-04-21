@@ -8,16 +8,17 @@ str_invalid:	.asciiz "Input a valid choice (0 - 6).\n"
 str_full:	.asciiz "That column is full.\n"
 str_one_win:	.asciiz "Player 1 wins!\n"
 str_two_win:	.asciiz "Player 2 wins!\n"
-str_picked	.asciiz	"Picked"
-str_withconf	.asciiz	"with confidence"
-str_percent	.asciiz	"%"
+str_tie:	.asciiz "It's a tie!  (The board is full.)"
+str_picked:	.asciiz	"Picked"
+str_withconf:	.asciiz	"with confidence"
+str_percent:	.asciiz	"%"
 
 str_board_top:	.asciiz "=============================\n"
 str_board_rowl:	.asciiz "[ "
 str_board_rowr: .asciiz " ]\n"
 str_board_div:	.asciiz " | "
 str_board_sp:	.asciiz " "
-str_board_bott:	.asciiz "=============================\n"
+str_board_bott:	.asciiz	"==0===1===2===3===4===5===6==\n"
 		.text
 		
 		
@@ -119,6 +120,10 @@ end_loop_input:
 #     }
 skip_one_wins:
 
+#     // Did the human input fill the board?
+		jal	is_board_full
+		bnez	$v0, its_a_tie
+
 #     // Do the AI's move...
 #     int ai_column = get_next_move(board);
 		jal	get_next_move
@@ -143,14 +148,24 @@ skip_one_wins:
 
 #     }
 skip_two_wins:
+
+#     // Did the human input fill the board?
+		jal	is_board_full
+		bnez	$v0, its_a_tie
+		
 		j	loop_game
 		
 #   }
 
+its_a_tie:	li	$v0, 4
+		la	$a0, str_tie
+		syscall
 
+		li	$v0, 10
+		syscall
 
 ################################################################################
-# This simply prints the board with the column indicies at the bottom	       #
+# This simply prints the board with the column indices at the bottom	       #
 #									       #
 # void print_board(int* board);						       #
 ################################################################################
@@ -462,8 +477,36 @@ cd_loop_rl:
 cd_loop_end:	li	$v0, 0
 		j	chk_d_done
 
-
-
+################################################################################
+# is_board_full                                                                #
+#                                                                              #
+# it checks if the board is full                                               #
+################################################################################
+is_board_full:	subi    $sp, $sp, 4             # push return addr to stack
+           	sw      $ra, 0($sp)
+           	
+           	li	$s1, 5			# $s1 = row
+           	li	$s2, 0			# $s2 = column
+           	
+start_full_chk:
+		bgt	$s2, 6, full_chk_full	# if column greater than 6, the board is full
+		move	$a0, $s1
+		move	$a1, $s2
+		jal	get
+		
+		addi	$s2, $s2, 1		# increment column
+		bnez	$v0, start_full_chk	# if the column is occupied, check next one
+		li	$v0, 0			# else, there's an empty slot and the board's not full, set $v0 to 0
+	
+end_full_chk:		
+           	lw	$ra, 0($sp)		# pop the return addr
+		addi	$sp, $sp, 4
+		jr 	$ra			# return
+		
+full_chk_full:
+		li	$v0, 1			# the board is full, set $v0 to 0
+		b	end_full_chk		
+		
 ################################################################################
 # int get_next_move(int* colvalues);                                           #
 #                                                                              #
@@ -485,7 +528,7 @@ get_next_move:
            
 gnm_loop:   bge     $t4, $t3, gnm_end
                            
-            add     $t6, $a0, $t4
+            add     $t6, $s3, $t4
             lw      $t6, 0($t6)             # colvalues[i]
 
             addi    $t4, $t4, 4             # "i++" (increment by a word)
@@ -682,11 +725,198 @@ ev_b2_sum1:	add 	$a2, $t2, $zero
 ev_b2_sum11:
 #########################################################################
 ## Diagonal Availabilities
-#
-#        IMPLEMENT MEEEEEEEEE!
-#
 #########################################################################
-		addi 	$s1, $s1, 1
+	######### Below Left Diagonal
+		subi	$t0, $s2, 3
+		subi	$t1, $s1, 3
+		# a = get(board, row - 3, col - 3)
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal	get
+		add	$t5, $v0, $zero
+		
+		# b = get(board, row - 2, col - 2)
+		addi	$t0, $t0, 1
+		addi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t6, $v0, $zero
+		
+		# c = get(board, row - 1, col - 1)
+		addi	$t0, $t0, 1
+		addi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t7, $v0, $zero
+		# up_player = $t7
+		# up_consec = num_consecutive(a, b, c)
+		add	$a0, $t5, $zero
+		add	$a1, $t6, $zero
+		add	$a2, $t7, $zero
+		jal num_consec
+		# (if up_player == -1 || up_player == 0) { up_consec = 0 }
+		slti	$t6, $t7, 1
+		bne	$t6, 1, ev_b3_bleft1
+		li	$v0, 0
+ev_b3_bleft1:	# Store the values somewhere happy.
+		add	$t2, $v0, $zero 			# up_consec
+		add	$t3, $t7, $zero				# up_player
+	######### Above Right Diagonal
+		addi	$t0, $s2, 3
+		addi	$t1, $s1, 3
+		# a = get(board, row + 3, col + 3)
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal	get
+		add	$t5, $v0, $zero
+		
+		# b = get(board, row + 2, col + 2)
+		subi	$t0, $t0, 1
+		subi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t6, $v0, $zero
+		
+		# c = get(board, row + 1, col + 1)
+		subi	$t0, $t0, 1
+		subi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t7, $v0, $zero
+		# below_consec = num_consecutive(a, b, c)
+		add	$a0, $t5, $zero
+		add	$a1, $t6, $zero
+		add	$a2, $t7, $zero
+		jal num_consec
+		# (if c == -1 || c == 0) { up_consec = 0 }
+		slti	$t6, $t7, 1
+		bne	$t6, 1, ev_b3_bleft2
+		li	$v0, 0
+ev_b3_bleft2:	# Store the values somewhere happy.
+		add	$t4, $v0, $zero			# below_consec
+		add	$t5, $t7, $zero			# below_player
+		# Now that one diagonal has happened, let's update the column
+		# values:
+# if (up_player == c) {
+		seq 	$t0, $t3, $t5
+		bne 	$t0, 1, ev_b3_bleft3
+		# int total_consec = up_consec + below_consec
+		add	$a2, $t2, $t4
+		add	$a0, $t3, $zero
+		add 	$a1, $s1, $zero
+		jal	set_colval		
+		j ev_b3_bleft4:
+ev_b3_bleft3:
+		add	$a2, $t2, $zero
+		add	$a0, $t3, $zero
+		add 	$a1, $s1, $zero
+		jal 	set_colval
+		add	$a2, $t4, $zero
+		add	$a0, $t5, $zero
+		add 	$a1, $s1, $zero
+		jal	set_colval
+ev_b3_bleft4:	#Done with the diagonal from below left to top right!!
+	######### Below Right Diagonal
+		subi	$t0, $s2, 3
+		addi	$t1, $s1, 3
+		# a = get(board, row - 3, col + 3)
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal	get
+		add	$t5, $v0, $zero
+		
+		# b = get(board, row - 2, col + 2)
+		addi	$t0, $t0, 1
+		subi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t6, $v0, $zero
+		
+		# c = get(board, row - 1, col + 1)
+		addi	$t0, $t0, 1
+		subi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t7, $v0, $zero
+		# up_player = $t7
+		# up_consec = num_consecutive(a, b, c)
+		add	$a0, $t5, $zero
+		add	$a1, $t6, $zero
+		add	$a2, $t7, $zero
+		jal num_consec
+		# (if up_player == -1 || up_player == 0) { up_consec = 0 }
+		slti	$t6, $t7, 1
+		bne	$t6, 1, ev_b3_bright1
+		li	$v0, 0
+ev_b3_bright1:	# Store the values somewhere happy.
+		add	$t2, $v0, $zero 			# up_consec
+		add	$t3, $t7, $zero				# up_player
+	######### Above Left Diagonal
+		addi	$t0, $s2, 3
+		subi	$t1, $s1, 3
+		# a = get(board, row + 3, col - 3)
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal	get
+		add	$t5, $v0, $zero
+		
+		# b = get(board, row + 2, col - 2)
+		subi	$t0, $t0, 1
+		addi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t6, $v0, $zero
+		
+		# c = get(board, row + 1, col - 1)
+		subi	$t0, $t0, 1
+		addi 	$t1, $t1, 1
+		add	$a0, $t0, $zero
+		add	$a1, $t1, $zero
+		jal 	get
+		add	$t7, $v0, $zero
+		# below_consec = num_consecutive(a, b, c)
+		add	$a0, $t5, $zero
+		add	$a1, $t6, $zero
+		add	$a2, $t7, $zero
+		jal num_consec
+		# (if c == -1 || c == 0) { up_consec = 0 }
+		slti	$t6, $t7, 1
+		bne	$t6, 1, ev_b3_bright2
+		li	$v0, 0
+ev_b3_bright2:	# Store the values somewhere happy.
+		add	$t4, $v0, $zero			# below_consec
+		add	$t5, $t7, $zero			# below_player
+		# Now that one diagonal has happened, let's update the column
+		# values:
+# if (up_player == c) {
+		seq 	$t0, $t3, $t5
+		bne 	$t0, 1, ev_b3_bright3
+		# int total_consec = up_consec + below_consec
+		add	$a2, $t2, $t4
+		add	$a0, $t3, $zero
+		add 	$a1, $s1, $zero
+		jal	set_colval		
+		j ev_b3_bright4:
+ev_b3_bright3:
+		add	$a2, $t2, $zero
+		add	$a0, $t3, $zero
+		add 	$a1, $s1, $zero
+		jal 	set_colval
+		add	$a2, $t4, $zero
+		add	$a0, $t5, $zero
+		add 	$a1, $s1, $zero
+		jal	set_colval
+ev_b3_bright4:	#Done with the diagonal from below right to top left!!
+
+
+		addi 	$s1, $s1, 1					
 		bne 	$s1, 7, eval_board_col
 # } (ends the main AI loop for each column.)
 ################################################################################
@@ -726,3 +956,23 @@ pow_done:
 set_colval_com: add	$a1, $a1, $v0
 		sw	$a1, 0($t3)
 		jr	$ra
+		
+################################################################################
+# Determines the consecutivity of the three given values		       #
+#									       #
+# $a0 = player in spot 1						       #
+# $a1 = player in spot 2						       #
+# $a2 = player in spot 3						       #
+# ($a3 used internally)							       #
+# $v0 = number that are consecutive to the final value			       #
+# 									       #
+################################################################################
+num_consec:	# if (a == b) { a_and_b = 1 }
+		seq	$a0, $a0, $a1
+		# if (b == c) { b_and_c = 1 }
+		seq 	$a3, $a1, $a2
+		and	$a0, $a0, $a3
+		addi	$a3, $a3, 1
+		or	$v0, $a0, $a3
+		j	$ra
+		
