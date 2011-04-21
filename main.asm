@@ -362,7 +362,7 @@ check_win:
 		sw	$ra, 0($sp)
 		
 		move	$a2, $a0		# remember the player id
-		move	$t0, $zero			# set return temp to 0
+		move	$t0, $zero		# set return temp to 0
 		
 		j	check_win_horz
 chk_h_done:	or	$t0, $t0, $v0
@@ -435,44 +435,65 @@ cv_loop_end:	li	$v0, 0
 		j	chk_v_done
 
 check_win_diag:
-		li	$t7, 7			# width
-		li	$t8, 6			# height
-		li	$t3, 3			# start_row = 3
-		li	$t4, 0			# start_column = 0
-		li	$t5, 3			# stop after column 3
-		li	$t9, 4			# number of hits to win
+		li	$t3, -3			# start off to the left
+		li	$t4, 3			# stop after 3
+		li	$t6, 4			# the number of consec hits needed
+		li	$t9, 7			# width
 		
-cd_loop_lr:	bgt	$t4, $t5, cd_loop_rl	# increment start_col as long as
-		addi	$t4, $t4, 1		# it's less than or equal to 3
+cd_loop_lr_a:	bgt	$t3, $t4, cd_loop_rl	# if (start_col > 3) go to next loop
+		addi	$t3, $t3, 1
 		
-		li	$t3, 3			# start_row = 3
+		li	$t7, 5			# row = height - 1
+		move	$t8, $t3		# col = start_col
 		
-cd_loop_lr_a:	bge	$t3, $t8, cd_loop_lr	# increment start_row as long as
-		addi	$t3, $t3, 1		# it's less than height
+		li	$t5, 0			# consec = 0
+cd_loop_lr_b:	bge	$t8, $t9, cd_loop_lr_a	# if (col >= width) loop
+		blt	$t7, $zero, cd_loop_lr_a# if (row < 0) loop
 		
-		li	$t6, 0			# consec = 0
-		move	$t1, $t3		# row = start_row
-		move	$t2, $t4		# column = start_col
+		move	$a0, $t7
+		move	$a1, $t8
+		jal	get			# get(row, col)
 		
-cd_loop_lr_in:	blt	$t1, $zero, cd_loop_lr_a
-		#bge	$t2, $t8, cd_loop_lr_a
+		subi	$t7, $t7, 1		# row--
+		addi	$t8, $t8, 1		# col++
 		
-		move	$a0, $t1
-		move	$a1, $t2
-		jal	get			# get(col, row)
+		bne	$v0, $a2, cd_loop_lr_b	# if ($v0 != player) consec = 0;
+		addi	$t5, $t5, 1		# consec++;
 		
-		subi	$t1, $t1, 1		# move down
-		addi	$t2, $t2, 1		# move right
-		
-		bne	$v0, $a2, cd_loop_lr_in	# if ($v0 != player) loop again
-		addi	$t6, $t6, 1		# consec++;
-		
-		bne	$t6, $t9, cd_loop_lr_in	# if (consec != 4) continue looping
+		bne	$t5, $t6, cd_loop_lr_b	# if (consec != 4) continue looping
 		li	$v0, 1
 		j	chk_d_done		# return 1;
 
 
 cd_loop_rl:
+		li	$t3, 9			# start off to the left
+		li	$t4, 3			# stop after 3
+		li	$t6, 4			# the number of consec hits needed
+		li	$t9, 7			# width
+		
+cd_loop_rl_a:	blt	$t3, $t4, cd_loop_end	# if (start_col < 3) stop
+		subi	$t3, $t3, 1
+		
+		li	$t7, 5			# row = height - 1
+		move	$t8, $t3		# col = start_col
+		
+		li	$t5, 0			# consec = 0
+cd_loop_rl_b:	bge	$t8, $t9, cd_loop_rl_a	# if (col >= width) loop
+		blt	$t7, $zero, cd_loop_rl_a# if (row < 0) loop
+		
+		move	$a0, $t7
+		move	$a1, $t8
+		jal	get			# get(row, col)
+		
+		subi	$t7, $t7, 1		# row--
+		subi	$t8, $t8, 1		# col--
+		
+		bne	$v0, $a2, cd_loop_rl_b	# if ($v0 != player) consec = 0;
+		addi	$t5, $t5, 1		# consec++;
+		
+		bne	$t5, $t6, cd_loop_rl_b	# if (consec != 4) continue looping
+		li	$v0, 1
+		j	chk_d_done		# return 1;
 
 cd_loop_end:	li	$v0, 0
 		j	chk_d_done
