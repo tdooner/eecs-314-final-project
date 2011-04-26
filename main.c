@@ -81,7 +81,7 @@ void print_board(int* board);
 
 int get_next_move(int* colvalues);
 int* evaluate_board(int* board);
-
+void set_colvals(int* colvalues, int player, int col, int conesc);
 /*
  * This is the main loop of the connect four game.  It first prints a 
  * welcome message, allocates the board, and then begins the game loop
@@ -397,12 +397,11 @@ int* evaluate_board(int* board)
 		// at the top.
 		if (row < HEIGHT) {
 			// Initialize this column to the goodness vertically.
-			colvalues[col] = (player == 2) ? (int)pow(10.0, vertical_consec) : -(int)pow(10.0,vertical_consec);
+			set_colvals(colvalues, player, col, vertical_consec);
 		} else {
 			colvalues[col] = 0;
 			continue; 	// Try the next column....
 		}
-		printf("Col %d Vertical: %d\n", col, colvalues[col]);
 
 		///////////////////////////////////////////////////////////////////////
 		// Horizontal Availablities
@@ -457,12 +456,11 @@ int* evaluate_board(int* board)
 		// position as more valuable.
 		if (horiz_before_player == horiz_after_player) {
 			int total_consec = horiz_before_consec + horiz_after_consec;	
-			colvalues[col] += (horiz_before_player == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
+			set_colvals(colvalues, horiz_before_player, col, total_consec);
 		} else {
-			colvalues[col] += (horiz_before_player == 2) ? (int)pow(10.0, horiz_before_consec) : -(int)pow(10.0,horiz_before_consec);
-			colvalues[col] += (horiz_after_player == 2) ? (int)pow(10.0, horiz_after_consec) : -(int)pow(10.0,horiz_after_consec);
+			set_colvals(colvalues, horiz_before_player, col, horiz_before_consec);
+			set_colvals(colvalues, horiz_after_player, col, horiz_after_consec);
 		}
-		printf("Col %d Horiz: %d\n", col, colvalues[col]);
 		/////////////////////////////////////////////////////////////
 		// Find Diagonal Availabilities
 		/////////////////////////////////////////////////////////////
@@ -495,13 +493,12 @@ int* evaluate_board(int* board)
 
 		if (up_player == c) { // If the streak continues across the gap
 			int total_consec = up_consec + below_consec;
-			colvalues[col] += (c == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
+			set_colvals(colvalues, c, col, total_consec);
 		} else {
-			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
-			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(10.0, below_consec);
+			set_colvals(colvalues, up_player, col, up_consec);
+			set_colvals(colvalues, c, col, below_consec);
 		}
-		printf("Col %d Vert1: %d\n", col, colvalues[col]);
-
+		
 		// Below right diagonal
 		a = get(board, row - 3, col + 3);
 		b = get(board, row - 2, col + 2);
@@ -523,12 +520,11 @@ int* evaluate_board(int* board)
 
 		if (up_player == c) { // If the streak continues across the gap
 			int total_consec = up_consec + below_consec;
-			colvalues[col] += (c == 2) ? (int)pow(10.0, total_consec) : -(int)pow(10.0,total_consec);
+			set_colvals(colvalues, c, col, total_consec);
 		} else {
-			colvalues[col] += (up_player == 2) ? (int)pow(10.0, up_consec) : -(int)pow(10.0, up_consec);
-			colvalues[col] += (c == 2) ? (int)pow(10.0, below_consec) : -(int)pow(11.0, below_consec);
+			set_colvals(colvalues, up_player, col, up_consec);
+			set_colvals(colvalues, c, col, below_consec);
 		}
-		printf("Col %d Vert2: %d\n", col, colvalues[col]);
 	}
 
 		// Below left to above right...
@@ -550,4 +546,8 @@ int num_consecutive(int a, int b, int c) {
 		}
 	}
 	return (a_and_b | b_and_c);
+}
+void set_colvals(int* colvalues, int player, int column, int consec) {
+//	printf("           Colvals: $a0: %d     $a1: %d       $a2: %d\n",player,column,consec);
+	colvalues[column] += (player == 2) ? (int)pow(10.0, consec) : -(int)pow(10.0, consec);
 }

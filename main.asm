@@ -701,7 +701,7 @@ ev_b2_before1:
 # if (horiz_before_player == 0) {
 # 	horiz_before_consec = 0;
 # }
-		bne 	$t0, $zero, ev_b2_after2
+		bne 	$t0, $zero, ev_b2_before2
 		li	$t2, 0
 ev_b2_before2:	# So we're good here, let's now do...
 	######### After the gap...
