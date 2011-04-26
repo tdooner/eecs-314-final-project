@@ -361,7 +361,7 @@ get_oob:
 # int check_win(int* board, int player);				       #
 ################################################################################
 check_win:
-		subi 	$sp, $sp, 4		# push return addr to stack
+		addi 	$sp, $sp, -4		# push return addr to stack
 		sw	$ra, 0($sp)
 		
 		move	$a2, $a0		# remember the player id
@@ -388,12 +388,12 @@ check_win_horz:
 		li	$t4, 4			# number of consec hits needed
 		
 ch_loop_height:	beqz	$t1, ch_loop_end
-		subi	$t1, $t1, 1		# i--;
+		addi	$t1, $t1, -1		# i--;
 		li	$t2, 7			# load width
 ch_lw_else:	li	$t3, 0			# consec = 0;
 
 ch_loop_width:	beqz	$t2, ch_loop_height
-		subi	$t2, $t2, 1		# j--;
+		addi	$t2, $t2, -1		# j--;
 		
 		move	$a0, $t1
 		move	$a1, $t2
@@ -416,12 +416,12 @@ check_win_vert:
 		li	$t4, 4			# number of consec hits needed
 		
 cv_loop_width:	beqz	$t1, cv_loop_end
-		subi	$t1, $t1, 1		# i--;
+		addi	$t1, $t1, -1		# i--;
 		li	$t2, 6			# load height
 cv_lh_else:	li	$t3, 0			# consec = 0;
 
 cv_loop_height:	beqz	$t2, cv_loop_width
-		subi	$t2, $t2, 1		# j--;
+		addi	$t2, $t2, -1		# j--;
 		
 		move	$a0, $t2
 		move	$a1, $t1
@@ -457,7 +457,7 @@ cd_loop_lr_b:	bge	$t8, $t9, cd_loop_lr_a	# if (col >= width) loop
 		move	$a1, $t8
 		jal	get			# get(row, col)
 		
-		subi	$t7, $t7, 1		# row--
+		addi	$t7, $t7,-1		# row--
 		addi	$t8, $t8, 1		# col++
 		
 		bne	$v0, $a2, cd_loop_lr_b	# if ($v0 != player) consec = 0;
@@ -475,7 +475,7 @@ cd_loop_rl:
 		li	$t9, 7			# width
 		
 cd_loop_rl_a:	blt	$t3, $t4, cd_loop_end	# if (start_col < 3) stop
-		subi	$t3, $t3, 1
+		addi	$t3, $t3,-1
 		
 		li	$t7, 5			# row = height - 1
 		move	$t8, $t3		# col = start_col
@@ -488,8 +488,8 @@ cd_loop_rl_b:	blt	$t8, $zero, cd_loop_rl_a	# if (col >= width) loop
 		move	$a1, $t8
 		jal	get			# get(row, col)
 		
-		subi	$t7, $t7, 1		# row--
-		subi	$t8, $t8, 1		# col--
+		addi	$t7, $t7,-1		# row--
+		addi	$t8, $t8,-1		# col--
 		
 		bne	$v0, $a2, cd_loop_rl_b	# if ($v0 != player) consec = 0;
 		addi	$t5, $t5, 1		# consec++;
@@ -506,7 +506,7 @@ cd_loop_end:	li	$v0, 0
 #                                                                              #
 # it checks if the board is full                                               #
 ################################################################################
-is_board_full:	subi    $sp, $sp, 4             # push return addr to stack
+is_board_full:	addi    $sp, $sp,-4             # push return addr to stack
            	sw      $ra, 0($sp)
            	
            	li	$s1, 5			# $s1 = row
@@ -540,7 +540,7 @@ full_chk_full:
 #                                                                              #
 ################################################################################
 get_next_move:
-                subi    $sp, $sp, 4             # push return addr to stack
+                addi    $sp, $sp,-4             # push return addr to stack
                 sw      $ra, 0($sp)
             
                 jal		evaluate_board
@@ -613,7 +613,7 @@ gnm_end:        li      $v0, 4
 # 									       #
 ################################################################################
 evaluate_board: 
-		subi    $sp, $sp, 4
+		addi    $sp, $sp,-4
 		sw      $ra, 0($sp)
 		
 		li 	$a0, 28 	# 4 bytes * 7 columns
@@ -723,7 +723,7 @@ ev_b2_after0:	sgt 	$t5, $t4, $s1	# col_horiz > col
 		bne	$t1, $v0, ev_b2_after00
 		add	$t5, $t5, $t3
 ev_b2_after00:
-		subi 	$t4, $t4, 1
+		addi 	$t4, $t4,-1
 		add	$t1, $v0, $zero
 		j 	ev_b2_after0
 ev_b2_after1:
@@ -758,8 +758,8 @@ ev_b2_sum11:
 ## Diagonal Availabilities
 #########################################################################
 	######### Below Left Diagonal
-		subi	$t0, $s2, 3
-		subi	$t1, $s1, 3
+		addi	$t0, $s2,-3
+		addi	$t1, $s1,-3
 		# a = get(board, row - 3, col - 3)
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
@@ -804,16 +804,16 @@ ev_b3_bleft1:	# Store the values somewhere happy.
 		add	$t5, $v0, $zero
 		
 		# b = get(board, row + 2, col + 2)
-		subi	$t0, $t0, 1
-		subi 	$t1, $t1, 1
+		addi	$t0, $t0, -1
+		addi 	$t1, $t1, -1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
 		jal 	get
 		add	$t6, $v0, $zero
 		
 		# c = get(board, row + 1, col + 1)
-		subi	$t0, $t0, 1
-		subi 	$t1, $t1, 1
+		addi	$t0, $t0, -1
+		addi 	$t1, $t1, -1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
 		jal 	get
@@ -852,7 +852,7 @@ ev_b3_bleft3:
 		jal	set_colval
 ev_b3_bleft4:	#Done with the diagonal from below left to top right!!
 	######### Below Right Diagonal
-		subi	$t0, $s2, 3
+		addi	$t0, $s2, -3
 		addi	$t1, $s1, 3
 		# a = get(board, row - 3, col + 3)
 		add	$a0, $t0, $zero
@@ -862,7 +862,7 @@ ev_b3_bleft4:	#Done with the diagonal from below left to top right!!
 		
 		# b = get(board, row - 2, col + 2)
 		addi	$t0, $t0, 1
-		subi 	$t1, $t1, 1
+		addi 	$t1, $t1, -1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
 		jal 	get
@@ -870,7 +870,7 @@ ev_b3_bleft4:	#Done with the diagonal from below left to top right!!
 		
 		# c = get(board, row - 1, col + 1)
 		addi	$t0, $t0, 1
-		subi 	$t1, $t1, 1
+		addi 	$t1, $t1, -1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
 		jal 	get
@@ -890,7 +890,7 @@ ev_b3_bright1:	# Store the values somewhere happy.
 		add	$t3, $t7, $zero				# up_player
 	######### Above Left Diagonal
 		addi	$t0, $s2, 3
-		subi	$t1, $s1, 3
+		addi	$t1, $s1, -3
 		# a = get(board, row + 3, col - 3)
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
@@ -898,7 +898,7 @@ ev_b3_bright1:	# Store the values somewhere happy.
 		add	$t5, $v0, $zero
 		
 		# b = get(board, row + 2, col - 2)
-		subi	$t0, $t0, 1
+		addi	$t0, $t0, -1
 		addi 	$t1, $t1, 1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
@@ -906,7 +906,7 @@ ev_b3_bright1:	# Store the values somewhere happy.
 		add	$t6, $v0, $zero
 		
 		# c = get(board, row + 1, col - 1)
-		subi	$t0, $t0, 1
+		addi	$t0, $t0, -1
 		addi 	$t1, $t1, 1
 		add	$a0, $t0, $zero
 		add	$a1, $t1, $zero
@@ -966,9 +966,9 @@ ev_b_endloop:
 # 									       #
 # $t1, $t0, $t3, and $a3 used internally, if you care to know		       #
 ################################################################################
-set_colval:	subi    $sp, $sp, 4             # push $t1 to stack
+set_colval:	addi    $sp, $sp, -4             # push $t1 to stack
             	sw      $t1, 0($sp)
-            	subi    $sp, $sp, 4             # push $t3 to stack
+            	addi    $sp, $sp, -4             # push $t3 to stack
             	sw      $t3, 0($sp)
             	
 		li	$a3, 4
